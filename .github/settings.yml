@@ -2,6 +2,6 @@
 _extends: .github
 repository:
   name: aws-access-analyzer
-  description: Template for Terraform Components
+  description: This component is responsible for configuring AWS Identity and Access Management Access Analyzer within an AWS Organization
   homepage: https://cloudposse.com/accelerate
   topics: terraform, terraform-component
