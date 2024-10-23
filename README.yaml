@@ -1,70 +1,147 @@
-name: "template"
-
+name: "aws-access-analyzer"
 # Canonical GitHub repo
-github_repo: "cloudposse-terraform-components/template"
-
+github_repo: "cloudposse-terraform-components/aws-access-analyzer"
 # Short description of this project
 description: |-
-  Description of this component
+  This component is responsible for configuring AWS Identity and Access Management Access Analyzer within an AWS
+  Organization.
 
-usage: |-
-  **Stack Level**: Regional or Test47
+  IAM Access Analyzer helps you identify the resources in your organization and accounts, such as Amazon S3 buckets or IAM
+  roles, shared with an external entity. This lets you identify unintended access to your resources and data, which is a
+  security risk. IAM Access Analyzer identifies resources shared with external principals by using logic-based reasoning
+  to analyze the resource-based policies in your AWS environment. For each instance of a resource shared outside of your
+  account, IAM Access Analyzer generates a finding. Findings include information about the access and the external
+  principal granted to it. You can review findings to determine if the access is intended and safe or if the access is
+  unintended and a security risk. In addition to helping you identify resources shared with an external entity, you can
+  use IAM Access Analyzer findings to preview how your policy affects public and cross-account access to your resource
+  before deploying resource permissions. The findings are organized in a visual summary dashboard. The dashboard
+  highlights the split between public and cross-account access findings, and provides a breakdown of findings by resource
+  type.
 
-  Here's an example snippet for how to use this component.
-  
+  IAM Access Analyzer analyzes only policies applied to resources in the same AWS Region where it's enabled. To monitor
+  all resources in your AWS environment, you must create an analyzer to enable IAM Access Analyzer in each Region where
+  you're using supported AWS resources.
+
+  AWS Identity and Access Management Access Analyzer provides the following capabilities:
+
+  - IAM Access Analyzer external access analyzers help identify resources in your organization and accounts that are
+    shared with an external entity.
+
+  - IAM Access Analyzer unused access analyzers help identify unused access in your organization and accounts.
+
+  - IAM Access Analyzer validates IAM policies against policy grammar and AWS best practices.
+
+  - IAM Access Analyzer custom policy checks help validate IAM policies against your specified security standards.
+
+  - IAM Access Analyzer generates IAM policies based on access activity in your AWS CloudTrail logs.
+
+  Here's a typical workflow:
+
+  **Delegate Access Analyzer to another account**: From the Organization management (root) account, delegate
+  administration to a specific AWS account within your organization (usually the security account).
+
+  **Create Access Analyzers in the Delegated Administrator Account**: Enable the Access Analyzers for external access and
+  unused access in the delegated administrator account.
+
+  ## Deployment Overview
+
   ```yaml
   components:
     terraform:
-      foo:
+      access-analyzer/defaults:
+        metadata:
+          component: access-analyzer
+          type: abstract
         vars:
           enabled: true
+          global_environment: gbl
+          account_map_tenant: core
+          root_account_stage: root
+          delegated_administrator_account_name: core-mgt
+          accessanalyzer_service_principal: "access-analyzer.amazonaws.com"
+          accessanalyzer_organization_enabled: false
+          accessanalyzer_organization_unused_access_enabled: false
+          organizations_delegated_administrator_enabled: false
   ```
 
+  ```yaml
+  import:
+    - catalog/access-analyzer/defaults
+
+  components:
+    terraform:
+      access-analyzer/root:
+        metadata:
+          component: access-analyzer
+          inherits:
+            - access-analyzer/defaults
+        vars:
+          organizations_delegated_administrator_enabled: true
+  ```
+
+  ```yaml
+  import:
+    - catalog/access-analyzer/defaults
+
+  components:
+    terraform:
+      access-analyzer/delegated-administrator:
+        metadata:
+          component: access-analyzer
+          inherits:
+            - access-analyzer/defaults
+        vars:
+          accessanalyzer_organization_enabled: true
+          accessanalyzer_organization_unused_access_enabled: true
+          unused_access_age: 30
+  ```
+
+  ### Provisioning
+
+  Delegate Access Analyzer to the security account:
+
+  ```bash
+  atmos terraform apply access-analyzer/root -s plat-dev-gbl-root
+  ```
+
+  Provision Access Analyzers for external access and unused access in the delegated administrator (security) account in
+  each region:
+
+  ```bash
+  atmos terraform apply access-analyzer/delegated-administrator -s plat-dev-use1-mgt
+  ```
+
+
+
+  ## References
+
+  - https://aws.amazon.com/iam/access-analyzer/
+  - https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html
+  - https://repost.aws/knowledge-center/iam-access-analyzer-organization
+  - https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/accessanalyzer_analyzer
+  - https://github.com/hashicorp/terraform-provider-aws/issues/19312
+  - https://github.com/hashicorp/terraform-provider-aws/pull/19389
+  - https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/organizations_delegated_administrator
 include:
   - "docs/terraform.md"
-
-tags:
-  - terraform
-  - terraform-modules
-  - aws
-  - components
-  - terraform-components
-  - root
-  - geodesic
-  - reference-implementation
-  - reference-architecture
-
+tags: []
 # Categories of this project
-categories:
-  - terraform-modules/root
-  - terraform-components
-
+categories: []
 # License of this project
 license: "APACHE2"
-
 # Badges to display
 badges:
-  - name: "Latest Release"
-    image: "https://img.shields.io/github/release/cloudposse-terraform-components/template.svg?style=for-the-badge"
-    url: "https://github.com/cloudposse-terraform-components/template/releases/latest"
-  - name: "Slack Community"
-    image: "https://slack.cloudposse.com/for-the-badge.svg"
-    url: "https://slack.cloudposse.com"
-
-references:
-  - name: "Cloud Posse Documentation"
-    description: "Complete documentation for the Cloud Posse solution"
-    url: "https://docs.cloudposse.com"
-  - name: "Reference Architectures"
-    description: "Launch effortlessly with our turnkey reference architectures, built either by your team or ours."
-    url: "https://cloudposse.com/"
-
+  - name: Latest Release
+    image: https://img.shields.io/github/release/cloudposse-terraform-components/aws-access-analyzer.svg?style=for-the-badge
+    url: https://github.com/cloudposse-terraform-components/aws-access-analyzer/releases/latest
+  - name: Slack Community
+    image: https://slack.cloudposse.com/for-the-badge.svg
+    url: https://slack.cloudposse.com
 related:
-- name: "Cloud Posse Terraform Modules"
-  description: Our collection of reusable Terraform modules used by our reference architectures.
-  url: "https://docs.cloudposse.com/modules/"
-- name: "Atmos"
-  description: "Atmos is like docker-compose but for your infrastructure"
-  url: "https://atmos.tools"
-
+  - name: "Cloud Posse Terraform Modules"
+    description: Our collection of reusable Terraform modules used by our reference architectures.
+    url: "https://docs.cloudposse.com/modules/"
+  - name: "Atmos"
+    description: "Atmos is like docker-compose but for your infrastructure"
+    url: "https://atmos.tools"
 contributors: [] # If included generates contribs
