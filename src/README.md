@@ -2,7 +2,7 @@
 tags:
 ---
 
-# Component: `access`
+# Component: `access-analyzer`
 
 This component is responsible for configuring AWS Identity and Access Management Access Analyzer within an AWS
 Organization.
