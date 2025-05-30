@@ -5,3 +5,4 @@ repository:
   description: This component is responsible for configuring AWS Identity and Access Management Access Analyzer within an AWS Organization
   homepage: https://cloudposse.com/accelerate
   topics: terraform, terraform-component
+
