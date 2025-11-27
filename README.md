@@ -78,6 +78,9 @@ created in each region.
 
 ## Deployment Workflow
 
+> **Important**: Step 1 must be completed successfully before Step 2 can run. The delegation and service-linked role
+> created in Step 1 are prerequisites for creating organization-level analyzers in Step 2.
+
 **Step 1 - Delegate Access Analyzer (Management Account)**: From the Organization management (root) account, delegate
 administration to the security account. This step also creates the required service-linked role.
 
@@ -96,6 +99,9 @@ The service-linked role creation can be controlled with the `service_linked_role
 
 ## Configuration
 
+> **Note**: The examples below use Cloud Posse naming conventions (e.g., `core-security` for the security account,
+> `plat-gbl-root` for stack names). Adjust these values to match your organization's account and stack naming conventions.
+
 ### Defaults (Abstract Component)
 
 ```yaml
@@ -110,6 +116,8 @@ components:
         global_environment: gbl
         account_map_tenant: core
         root_account_stage: root
+        # The account name of your delegated administrator (typically your security account)
+        # Adjust to match your organization's account naming convention
         delegated_administrator_account_name: core-security
         accessanalyzer_service_principal: "access-analyzer.amazonaws.com"
         accessanalyzer_organization_enabled: false
@@ -161,9 +169,13 @@ components:
 
 ## Provisioning
 
+> **Note**: Replace the stack names below (e.g., `plat-gbl-root`, `plat-use1-security`) with your actual stack names
+> based on your Atmos stack configuration.
+
 **Step 1:** Delegate Access Analyzer to the security account (run once from root/management account):
 
 ```bash
+# Replace with your root account stack name
 atmos terraform apply access-analyzer/root -s plat-gbl-root
 ```
 
@@ -174,7 +186,7 @@ This step:
 **Step 2:** Create analyzers in the delegated administrator (security) account for each region:
 
 ```bash
-# Deploy to each region where you have resources
+# Replace with your security account stack names for each region
 atmos terraform apply access-analyzer/delegated-administrator -s plat-use1-security
 atmos terraform apply access-analyzer/delegated-administrator -s plat-usw2-security
 ```
@@ -303,6 +315,8 @@ This step creates the organization-wide analyzers:
 | <a name="output_aws_organizations_delegated_administrator_status"></a> [aws\_organizations\_delegated\_administrator\_status](#output\_aws\_organizations\_delegated\_administrator\_status) | AWS Organizations Delegated Administrator status |
 | <a name="output_organization_accessanalyzer_id"></a> [organization\_accessanalyzer\_id](#output\_organization\_accessanalyzer\_id) | Organization Access Analyzer ID |
 | <a name="output_organization_unused_access_accessanalyzer_id"></a> [organization\_unused\_access\_accessanalyzer\_id](#output\_organization\_unused\_access\_accessanalyzer\_id) | Organization unused access Access Analyzer ID |
+| <a name="output_service_linked_role_arn"></a> [service\_linked\_role\_arn](#output\_service\_linked\_role\_arn) | ARN of the Access Analyzer service-linked role |
+| <a name="output_service_linked_role_name"></a> [service\_linked\_role\_name](#output\_service\_linked\_role\_name) | Name of the Access Analyzer service-linked role |
 <!-- markdownlint-restore -->
 
 
