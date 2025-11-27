@@ -17,3 +17,13 @@ output "aws_organizations_delegated_administrator_status" {
   value       = one(aws_organizations_delegated_administrator.default[*].status)
   description = "AWS Organizations Delegated Administrator status"
 }
+
+output "service_linked_role_arn" {
+  value       = one(aws_iam_service_linked_role.access_analyzer[*].arn)
+  description = "ARN of the Access Analyzer service-linked role"
+}
+
+output "service_linked_role_name" {
+  value       = one(aws_iam_service_linked_role.access_analyzer[*].name)
+  description = "Name of the Access Analyzer service-linked role"
+}

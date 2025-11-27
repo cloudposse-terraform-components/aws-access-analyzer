@@ -4,6 +4,15 @@ locals {
   org_delegated_administrator_account_id = local.account_map[var.delegated_administrator_account_name]
 }
 
+# Create the service-linked role in the management account
+# This is required before organization-level analyzers can be created from delegated admin
+resource "aws_iam_service_linked_role" "access_analyzer" {
+  count = local.enabled && var.service_linked_role_enabled && var.organizations_delegated_administrator_enabled ? 1 : 0
+
+  aws_service_name = "access-analyzer.amazonaws.com"
+  description      = "Service-linked role for AWS Access Analyzer"
+}
+
 resource "aws_accessanalyzer_analyzer" "organization" {
   count = local.enabled && var.accessanalyzer_organization_enabled ? 1 : 0
 
