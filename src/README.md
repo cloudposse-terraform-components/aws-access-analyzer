@@ -1,5 +1,11 @@
 ---
 tags:
+  - aws
+  - iam
+  - access-analyzer
+  - security
+  - compliance
+  - organizations
 ---
 
 # Component: `access-analyzer`
@@ -7,44 +13,76 @@ tags:
 This component is responsible for configuring AWS Identity and Access Management Access Analyzer within an AWS
 Organization.
 
-IAM Access Analyzer helps you identify the resources in your organization and accounts, such as Amazon S3 buckets or IAM
-roles, shared with an external entity. This lets you identify unintended access to your resources and data, which is a
-security risk. IAM Access Analyzer identifies resources shared with external principals by using logic-based reasoning
-to analyze the resource-based policies in your AWS environment. For each instance of a resource shared outside of your
-account, IAM Access Analyzer generates a finding. Findings include information about the access and the external
-principal granted to it. You can review findings to determine if the access is intended and safe or if the access is
-unintended and a security risk. In addition to helping you identify resources shared with an external entity, you can
-use IAM Access Analyzer findings to preview how your policy affects public and cross-account access to your resource
-before deploying resource permissions. The findings are organized in a visual summary dashboard. The dashboard
-highlights the split between public and cross-account access findings, and provides a breakdown of findings by resource
-type.
+IAM Access Analyzer helps identify resources in your organization and accounts that are shared with external entities,
+as well as unused access permissions. This enables you to identify unintended access to your resources and data, which
+is a critical security risk. Access Analyzer uses logic-based reasoning to analyze resource-based policies in your AWS
+environment and generates findings for each instance of a resource shared outside your account.
 
-IAM Access Analyzer analyzes only policies applied to resources in the same AWS Region where it's enabled. To monitor
-all resources in your AWS environment, you must create an analyzer to enable IAM Access Analyzer in each Region where
-you're using supported AWS resources.
+## Key Features
 
-AWS Identity and Access Management Access Analyzer provides the following capabilities:
+- **External Access Analysis**: Identifies resources shared with external principals outside your organization
+- **Unused Access Analysis**: Detects unused IAM roles, users, and permissions to implement least privilege
+- **Policy Validation**: Validates IAM policies against policy grammar and AWS best practices
+- **Custom Policy Checks**: Validates IAM policies against your specified security standards
+- **Policy Generation**: Generates least-privilege IAM policies based on CloudTrail access activity
 
-- IAM Access Analyzer external access analyzers help identify resources in your organization and accounts that are
-  shared with an external entity.
+## Analyzer Types
 
-- IAM Access Analyzer unused access analyzers help identify unused access in your organization and accounts.
+This component creates two types of organization-wide analyzers:
 
-- IAM Access Analyzer validates IAM policies against policy grammar and AWS best practices.
+| Analyzer Type | Purpose | Findings |
+|---------------|---------|----------|
+| `ORGANIZATION` | External access analysis | Public access, cross-account access, cross-organization access |
+| `ORGANIZATION_UNUSED_ACCESS` | Unused access analysis | Unused roles, users, permissions (configurable threshold) |
 
-- IAM Access Analyzer custom policy checks help validate IAM policies against your specified security standards.
+## Supported Resources
 
-- IAM Access Analyzer generates IAM policies based on access activity in your AWS CloudTrail logs.
+External access analyzer monitors the following resource types:
+- Amazon S3 buckets and access points
+- IAM roles and policies
+- AWS KMS keys
+- AWS Lambda functions and layers
+- Amazon SQS queues
+- AWS Secrets Manager secrets
+- Amazon SNS topics
+- Amazon EBS volume snapshots
+- Amazon RDS DB snapshots and cluster snapshots
+- Amazon ECR repositories
+- Amazon EFS file systems
 
-Here's a typical workflow:
+## Regional Deployment
 
-**Delegate Access Analyzer to another account**: From the Organization management (root) account, delegate
-administration to a specific AWS account within your organization (usually the security account).
+IAM Access Analyzer is a regional service. You must deploy analyzers to each region where you have resources that need
+monitoring. The delegation from the management account only needs to happen once (globally), but analyzers must be
+created in each region.
 
-**Create Access Analyzers in the Delegated Administrator Account**: Enable the Access Analyzers for external access and
-unused access in the delegated administrator account.
+## Deployment Workflow
 
-## Deployment Overview
+> **Important**: Step 1 must be completed successfully before Step 2 can run. The delegation and service-linked role
+> created in Step 1 are prerequisites for creating organization-level analyzers in Step 2.
+
+**Step 1 - Delegate Access Analyzer (Management Account)**: From the Organization management (root) account, delegate
+administration to the security account. This step also creates the required service-linked role.
+
+**Step 2 - Create Analyzers (Delegated Administrator)**: Deploy the external access and unused access analyzers in the
+delegated administrator account for each region.
+
+## Service-Linked Role
+
+AWS Access Analyzer requires a service-linked role (`AWSServiceRoleForAccessAnalyzer`) in the organization management
+account before organization-level analyzers can be created from the delegated administrator. This component
+automatically creates this role when deploying to the root account with `organizations_delegated_administrator_enabled: true`.
+
+The service-linked role creation can be controlled with the `service_linked_role_enabled` variable:
+- `true` (default): Creates the service-linked role when delegating administration
+- `false`: Skips creation (use if the role already exists or was created manually/by another process)
+
+## Configuration
+
+> **Note**: The examples below use Cloud Posse naming conventions (e.g., `core-security` for the security account,
+> `plat-gbl-root` for stack names). Adjust these values to match your organization's account and stack naming conventions.
+
+### Defaults (Abstract Component)
 
 ```yaml
 components:
@@ -58,12 +96,17 @@ components:
         global_environment: gbl
         account_map_tenant: core
         root_account_stage: root
-        delegated_administrator_account_name: core-mgt
+        # The account name of your delegated administrator (typically your security account)
+        # Adjust to match your organization's account naming convention
+        delegated_administrator_account_name: core-security
         accessanalyzer_service_principal: "access-analyzer.amazonaws.com"
         accessanalyzer_organization_enabled: false
         accessanalyzer_organization_unused_access_enabled: false
         organizations_delegated_administrator_enabled: false
+        service_linked_role_enabled: true
 ```
+
+### Root Account Configuration (Step 1)
 
 ```yaml
 import:
@@ -71,6 +114,7 @@ import:
 
 components:
   terraform:
+    # Step 1: Deploy to root account to delegate administration and create service-linked role
     access-analyzer/root:
       metadata:
         component: access-analyzer
@@ -78,7 +122,11 @@ components:
           - access-analyzer/defaults
       vars:
         organizations_delegated_administrator_enabled: true
+        # Set to false if the service-linked role already exists
+        service_linked_role_enabled: true
 ```
+
+### Delegated Administrator Configuration (Step 2)
 
 ```yaml
 import:
@@ -86,6 +134,7 @@ import:
 
 components:
   terraform:
+    # Step 2: Deploy to delegated administrator (security) account to create analyzers
     access-analyzer/delegated-administrator:
       metadata:
         component: access-analyzer
@@ -94,33 +143,63 @@ components:
       vars:
         accessanalyzer_organization_enabled: true
         accessanalyzer_organization_unused_access_enabled: true
+        # Number of days without use before generating unused access findings (default: 30)
         unused_access_age: 30
 ```
 
-### Provisioning
+## Provisioning
 
-Delegate Access Analyzer to the security account:
+> **Note**: Replace the stack names below (e.g., `plat-gbl-root`, `plat-use1-security`) with your actual stack names
+> based on your Atmos stack configuration.
 
-```bash
-atmos terraform apply access-analyzer/root -s plat-dev-gbl-root
-```
-
-Provision Access Analyzers for external access and unused access in the delegated administrator (security) account in
-each region:
+**Step 1:** Delegate Access Analyzer to the security account (run once from root/management account):
 
 ```bash
-atmos terraform apply access-analyzer/delegated-administrator -s plat-dev-use1-mgt
+# Replace with your root account stack name
+atmos terraform apply access-analyzer/root -s plat-gbl-root
 ```
+
+This step:
+- Creates the service-linked role for Access Analyzer (if `service_linked_role_enabled: true`)
+- Delegates Access Analyzer administration to the security account
+
+**Step 2:** Create analyzers in the delegated administrator (security) account for each region:
+
+```bash
+# Replace with your security account stack names for each region
+atmos terraform apply access-analyzer/delegated-administrator -s plat-use1-security
+atmos terraform apply access-analyzer/delegated-administrator -s plat-usw2-security
+```
+
+This step creates the organization-wide analyzers:
+- External access analyzer (type: `ORGANIZATION`)
+- Unused access analyzer (type: `ORGANIZATION_UNUSED_ACCESS`)
+
+## Cost Considerations
+
+- **External Access Analyzer**: No additional charge (included with AWS account)
+- **Unused Access Analyzer**: Charged per IAM role or user analyzed per month
+- See [IAM Access Analyzer pricing](https://aws.amazon.com/iam/access-analyzer/pricing/) for current rates
 
 ## References
 
-- https://aws.amazon.com/iam/access-analyzer/
-- https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html
-- https://repost.aws/knowledge-center/iam-access-analyzer-organization
-- https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/accessanalyzer_analyzer
-- https://github.com/hashicorp/terraform-provider-aws/issues/19312
-- https://github.com/hashicorp/terraform-provider-aws/pull/19389
-- https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/organizations_delegated_administrator
+### AWS Documentation
+- [What is IAM Access Analyzer?](https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html)
+- [Getting Started with Access Analyzer](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-getting-started.html)
+- [Access Analyzer Findings](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-findings.html)
+- [Unused Access Analysis](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-unused-access.html)
+- [Service-Linked Role for Access Analyzer](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-getting-started.html#access-analyzer-permissions)
+- [Delegated Administrator for Access Analyzer](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-settings.html#access-analyzer-delegated-administrator)
+
+### Terraform Resources
+- [aws_accessanalyzer_analyzer](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/accessanalyzer_analyzer)
+- [aws_iam_service_linked_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_service_linked_role)
+- [aws_organizations_delegated_administrator](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/organizations_delegated_administrator)
+
+### Additional Resources
+- [IAM Access Analyzer Product Page](https://aws.amazon.com/iam/access-analyzer/)
+- [IAM Access Analyzer Pricing](https://aws.amazon.com/iam/access-analyzer/pricing/)
+- [Setting up Access Analyzer for Organization](https://repost.aws/knowledge-center/iam-access-analyzer-organization)
 
 
 <!-- markdownlint-disable -->
@@ -151,6 +230,7 @@ atmos terraform apply access-analyzer/delegated-administrator -s plat-dev-use1-m
 |------|------|
 | [aws_accessanalyzer_analyzer.organization](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/accessanalyzer_analyzer) | resource |
 | [aws_accessanalyzer_analyzer.organization_unused_access](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/accessanalyzer_analyzer) | resource |
+| [aws_iam_service_linked_role.access_analyzer](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_service_linked_role) | resource |
 | [aws_organizations_delegated_administrator.default](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/organizations_delegated_administrator) | resource |
 
 ## Inputs
@@ -177,11 +257,11 @@ atmos terraform apply access-analyzer/delegated-administrator -s plat-dev-use1-m
 | <a name="input_labels_as_tags"></a> [labels\_as\_tags](#input\_labels\_as\_tags) | Set of labels (ID elements) to include as tags in the `tags` output.<br/>Default is to include all labels.<br/>Tags with empty values will not be included in the `tags` output.<br/>Set to `[]` to suppress all generated tags.<br/>**Notes:**<br/>  The value of the `name` tag, if included, will be the `id`, not the `name`.<br/>  Unlike other `null-label` inputs, the initial setting of `labels_as_tags` cannot be<br/>  changed in later chained modules. Attempts to change it will be silently ignored. | `set(string)` | <pre>[<br/>  "default"<br/>]</pre> | no |
 | <a name="input_name"></a> [name](#input\_name) | ID element. Usually the component or solution name, e.g. 'app' or 'jenkins'.<br/>This is the only ID element not also included as a `tag`.<br/>The "name" tag is set to the full `id` string. There is no tag with the value of the `name` input. | `string` | `null` | no |
 | <a name="input_namespace"></a> [namespace](#input\_namespace) | ID element. Usually an abbreviation of your organization name, e.g. 'eg' or 'cp', to help ensure generated IDs are globally unique | `string` | `null` | no |
-| <a name="input_organization_management_account_name"></a> [organization\_management\_account\_name](#input\_organization\_management\_account\_name) | The name of the AWS Organization management account | `string` | `null` | no |
 | <a name="input_organizations_delegated_administrator_enabled"></a> [organizations\_delegated\_administrator\_enabled](#input\_organizations\_delegated\_administrator\_enabled) | Flag to enable the Organization delegated administrator | `bool` | n/a | yes |
 | <a name="input_regex_replace_chars"></a> [regex\_replace\_chars](#input\_regex\_replace\_chars) | Terraform regular expression (regex) string.<br/>Characters matching the regex will be removed from the ID elements.<br/>If not set, `"/[^a-zA-Z0-9-]/"` is used to remove all characters other than hyphens, letters and digits. | `string` | `null` | no |
 | <a name="input_region"></a> [region](#input\_region) | AWS Region | `string` | n/a | yes |
 | <a name="input_root_account_stage"></a> [root\_account\_stage](#input\_root\_account\_stage) | The stage name for the Organization root (management) account. This is used to lookup account IDs from account names<br/>using the `account-map` component. | `string` | `"root"` | no |
+| <a name="input_service_linked_role_enabled"></a> [service\_linked\_role\_enabled](#input\_service\_linked\_role\_enabled) | Create the service-linked role `access-analyzer.amazonaws.com` in the management account | `bool` | `true` | no |
 | <a name="input_stage"></a> [stage](#input\_stage) | ID element. Usually used to indicate role, e.g. 'prod', 'staging', 'source', 'build', 'test', 'deploy', 'release' | `string` | `null` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | Additional tags (e.g. `{'BusinessUnit': 'XYZ'}`).<br/>Neither the tag keys nor the tag values will be modified by this module. | `map(string)` | `{}` | no |
 | <a name="input_tenant"></a> [tenant](#input\_tenant) | ID element \_(Rarely used, not included by default)\_. A customer identifier, indicating who this instance of a resource is for | `string` | `null` | no |
@@ -195,6 +275,8 @@ atmos terraform apply access-analyzer/delegated-administrator -s plat-dev-use1-m
 | <a name="output_aws_organizations_delegated_administrator_status"></a> [aws\_organizations\_delegated\_administrator\_status](#output\_aws\_organizations\_delegated\_administrator\_status) | AWS Organizations Delegated Administrator status |
 | <a name="output_organization_accessanalyzer_id"></a> [organization\_accessanalyzer\_id](#output\_organization\_accessanalyzer\_id) | Organization Access Analyzer ID |
 | <a name="output_organization_unused_access_accessanalyzer_id"></a> [organization\_unused\_access\_accessanalyzer\_id](#output\_organization\_unused\_access\_accessanalyzer\_id) | Organization unused access Access Analyzer ID |
+| <a name="output_service_linked_role_arn"></a> [service\_linked\_role\_arn](#output\_service\_linked\_role\_arn) | ARN of the Access Analyzer service-linked role |
+| <a name="output_service_linked_role_name"></a> [service\_linked\_role\_name](#output\_service\_linked\_role\_name) | Name of the Access Analyzer service-linked role |
 <!-- markdownlint-restore -->
 
 

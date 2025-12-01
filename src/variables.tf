@@ -19,12 +19,6 @@ variable "global_environment" {
   description = "Global environment name"
 }
 
-variable "organization_management_account_name" {
-  type        = string
-  default     = null
-  description = "The name of the AWS Organization management account"
-}
-
 variable "root_account_stage" {
   type        = string
   default     = "root"
@@ -59,4 +53,10 @@ variable "accessanalyzer_service_principal" {
   type        = string
   description = "The Access Analyzer service principal for which you want to make the member account a delegated administrator"
   default     = "access-analyzer.amazonaws.com"
+}
+
+variable "service_linked_role_enabled" {
+  type        = bool
+  description = "Create the service-linked role `access-analyzer.amazonaws.com` in the management account"
+  default     = true
 }
