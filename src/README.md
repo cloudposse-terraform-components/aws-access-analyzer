@@ -26,6 +26,16 @@ environment and generates findings for each instance of a resource shared outsid
 - **Custom Policy Checks**: Validates IAM policies against your specified security standards
 - **Policy Generation**: Generates least-privilege IAM policies based on CloudTrail access activity
 
+## Component Features
+
+- **Delegated Administrator Model**: Uses AWS Organizations delegated administrator pattern for centralized management
+- **Multi-Region Deployment**: Supports deployment across all AWS regions
+- **External Access Analysis**: Identifies resources shared with external principals
+- **Unused Access Analysis**: Detects unused IAM roles, users, and permissions with configurable threshold
+- **Service-Linked Role**: Automatically creates the required service-linked role during delegation
+- **Account Verification**: Optional safety check that validates Terraform is running in the correct AWS account
+- **Flexible Account Map**: Supports both remote-state account-map lookups (default) and static account map variables
+
 ## Analyzer Types
 
 This component creates two types of organization-wide analyzers:
@@ -208,13 +218,13 @@ This step creates the organization-wide analyzers:
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3.0 |
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 4.9.0, < 6.0.0 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 4.9.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 4.9.0, < 6.0.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 4.9.0 |
 
 ## Modules
 
@@ -232,6 +242,8 @@ This step creates the organization-wide analyzers:
 | [aws_accessanalyzer_analyzer.organization_unused_access](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/accessanalyzer_analyzer) | resource |
 | [aws_iam_service_linked_role.access_analyzer](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_service_linked_role) | resource |
 | [aws_organizations_delegated_administrator.default](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/organizations_delegated_administrator) | resource |
+| [terraform_data.account_verification](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) | resource |
+| [aws_caller_identity.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
 
 ## Inputs
 
@@ -240,7 +252,10 @@ This step creates the organization-wide analyzers:
 | <a name="input_accessanalyzer_organization_enabled"></a> [accessanalyzer\_organization\_enabled](#input\_accessanalyzer\_organization\_enabled) | Flag to enable the Organization Access Analyzer | `bool` | n/a | yes |
 | <a name="input_accessanalyzer_organization_unused_access_enabled"></a> [accessanalyzer\_organization\_unused\_access\_enabled](#input\_accessanalyzer\_organization\_unused\_access\_enabled) | Flag to enable the Organization unused access Access Analyzer | `bool` | n/a | yes |
 | <a name="input_accessanalyzer_service_principal"></a> [accessanalyzer\_service\_principal](#input\_accessanalyzer\_service\_principal) | The Access Analyzer service principal for which you want to make the member account a delegated administrator | `string` | `"access-analyzer.amazonaws.com"` | no |
-| <a name="input_account_map_tenant"></a> [account\_map\_tenant](#input\_account\_map\_tenant) | The tenant where the `account_map` component required by remote-state is deployed | `string` | n/a | yes |
+| <a name="input_account_map"></a> [account\_map](#input\_account\_map) | Static account map configuration. Only used when `account_map_enabled` is `false`.<br/>Map keys use `tenant-stage` format (e.g., `core-security`, `core-audit`, `plat-prod`). | <pre>object({<br/>    full_account_map              = map(string)<br/>    audit_account_account_name    = optional(string, "")<br/>    root_account_account_name     = optional(string, "")<br/>    identity_account_account_name = optional(string, "")<br/>    aws_partition                 = optional(string, "aws")<br/>    iam_role_arn_templates        = optional(map(string), {})<br/>  })</pre> | <pre>{<br/>  "full_account_map": {}<br/>}</pre> | no |
+| <a name="input_account_map_enabled"></a> [account\_map\_enabled](#input\_account\_map\_enabled) | Enable the account map component. When true (default), the component fetches account mappings from the<br/>`account-map` component via remote state. When false, the component uses the static `account_map` variable instead. | `bool` | `true` | no |
+| <a name="input_account_map_tenant"></a> [account\_map\_tenant](#input\_account\_map\_tenant) | The tenant where the `account_map` component required by remote-state is deployed | `string` | `"core"` | no |
+| <a name="input_account_verification_enabled"></a> [account\_verification\_enabled](#input\_account\_verification\_enabled) | Enable account verification. When true (default), the component verifies that Terraform is executing<br/>in the correct AWS account by comparing the current account ID against the expected account from the<br/>account\_map based on the component's tenant-stage context. | `bool` | `true` | no |
 | <a name="input_additional_tag_map"></a> [additional\_tag\_map](#input\_additional\_tag\_map) | Additional key-value pairs to add to each map in `tags_as_list_of_maps`. Not added to `tags` or `id`.<br/>This is for some rare cases where resources want additional configuration of tags<br/>and therefore take a list of maps with tag key, value, and additional configuration. | `map(string)` | `{}` | no |
 | <a name="input_attributes"></a> [attributes](#input\_attributes) | ID element. Additional attributes (e.g. `workers` or `cluster`) to add to `id`,<br/>in the order they appear in the list. New attributes are appended to the<br/>end of the list. The elements of the list are joined by the `delimiter`<br/>and treated as a single ID element. | `list(string)` | `[]` | no |
 | <a name="input_context"></a> [context](#input\_context) | Single object for setting entire context at once.<br/>See description of individual variables for details.<br/>Leave string and numeric variables as `null` to use default value.<br/>Individual variable settings (non-null) override settings in context object,<br/>except for attributes, tags, and additional\_tag\_map, which are merged. | `any` | <pre>{<br/>  "additional_tag_map": {},<br/>  "attributes": [],<br/>  "delimiter": null,<br/>  "descriptor_formats": {},<br/>  "enabled": true,<br/>  "environment": null,<br/>  "id_length_limit": null,<br/>  "label_key_case": null,<br/>  "label_order": [],<br/>  "label_value_case": null,<br/>  "labels_as_tags": [<br/>    "unset"<br/>  ],<br/>  "name": null,<br/>  "namespace": null,<br/>  "regex_replace_chars": null,<br/>  "stage": null,<br/>  "tags": {},<br/>  "tenant": null<br/>}</pre> | no |

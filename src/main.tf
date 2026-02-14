@@ -1,7 +1,13 @@
 locals {
-  enabled                                = module.this.enabled
-  account_map                            = module.account_map.outputs.full_account_map
+  enabled     = module.this.enabled
+  account_map = module.account_map.outputs.full_account_map
+
+  current_account_id                     = one(data.aws_caller_identity.this[*].account_id)
   org_delegated_administrator_account_id = local.account_map[var.delegated_administrator_account_name]
+}
+
+data "aws_caller_identity" "this" {
+  count = local.enabled ? 1 : 0
 }
 
 # Create the service-linked role in the management account
