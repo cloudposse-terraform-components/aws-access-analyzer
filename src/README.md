@@ -8,7 +8,7 @@ tags:
   - organizations
 ---
 
-# Component: `access-analyzer`
+# Component: `aws-access-analyzer`
 
 This component is responsible for configuring AWS Identity and Access Management Access Analyzer within an AWS
 Organization.
@@ -90,16 +90,16 @@ The service-linked role creation can be controlled with the `service_linked_role
 ## Configuration
 
 > **Note**: The examples below use Cloud Posse naming conventions (e.g., `core-security` for the security account,
-> `plat-gbl-root` for stack names). Adjust these values to match your organization's account and stack naming conventions.
+> `core-gbl-root` for stack names). Adjust these values to match your organization's account and stack naming conventions.
 
 ### Defaults (Abstract Component)
 
 ```yaml
 components:
   terraform:
-    access-analyzer/defaults:
+    aws-access-analyzer/defaults:
       metadata:
-        component: access-analyzer
+        component: aws-access-analyzer
         type: abstract
       vars:
         enabled: true
@@ -120,16 +120,16 @@ components:
 
 ```yaml
 import:
-  - catalog/access-analyzer/defaults
+  - catalog/aws-access-analyzer/defaults
 
 components:
   terraform:
     # Step 1: Deploy to root account to delegate administration and create service-linked role
-    access-analyzer/root:
+    aws-access-analyzer/root:
       metadata:
-        component: access-analyzer
+        component: aws-access-analyzer
         inherits:
-          - access-analyzer/defaults
+          - aws-access-analyzer/defaults
       vars:
         organizations_delegated_administrator_enabled: true
         # Set to false if the service-linked role already exists
@@ -140,16 +140,16 @@ components:
 
 ```yaml
 import:
-  - catalog/access-analyzer/defaults
+  - catalog/aws-access-analyzer/defaults
 
 components:
   terraform:
     # Step 2: Deploy to delegated administrator (security) account to create analyzers
-    access-analyzer/delegated-administrator:
+    aws-access-analyzer/delegated-administrator:
       metadata:
-        component: access-analyzer
+        component: aws-access-analyzer
         inherits:
-          - access-analyzer/defaults
+          - aws-access-analyzer/defaults
       vars:
         accessanalyzer_organization_enabled: true
         accessanalyzer_organization_unused_access_enabled: true
@@ -159,14 +159,14 @@ components:
 
 ## Provisioning
 
-> **Note**: Replace the stack names below (e.g., `plat-gbl-root`, `plat-use1-security`) with your actual stack names
+> **Note**: Replace the stack names below (e.g., `core-gbl-root`, `core-use1-security`) with your actual stack names
 > based on your Atmos stack configuration.
 
 **Step 1:** Delegate Access Analyzer to the security account (run once from root/management account):
 
 ```bash
 # Replace with your root account stack name
-atmos terraform apply access-analyzer/root -s plat-gbl-root
+atmos terraform apply aws-access-analyzer/root -s core-gbl-root
 ```
 
 This step:
@@ -177,8 +177,8 @@ This step:
 
 ```bash
 # Replace with your security account stack names for each region
-atmos terraform apply access-analyzer/delegated-administrator -s plat-use1-security
-atmos terraform apply access-analyzer/delegated-administrator -s plat-usw2-security
+atmos terraform apply aws-access-analyzer/delegated-administrator -s core-use1-security
+atmos terraform apply aws-access-analyzer/delegated-administrator -s core-usw2-security
 ```
 
 This step creates the organization-wide analyzers:
