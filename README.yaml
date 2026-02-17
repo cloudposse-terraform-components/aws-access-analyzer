@@ -27,7 +27,7 @@ description: |-
   - **Unused Access Analysis**: Detects unused IAM roles, users, and permissions with configurable threshold
   - **Service-Linked Role**: Automatically creates the required service-linked role during delegation
   - **Account Verification**: Optional safety check that validates Terraform is running in the correct AWS account
-  - **Flexible Account Map**: Supports both remote-state account-map lookups (default) and static account map variables
+  - **Flexible Account Map**: Supports both remote-state account-map lookups and static account map variables (default)
 
   ## Analyzer Types
 
