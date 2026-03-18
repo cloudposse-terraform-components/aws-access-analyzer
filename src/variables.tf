@@ -63,11 +63,6 @@ variable "privileged" {
   description = "true if the default provider already has access to the backend"
 }
 
-variable "organization_management_account_name" {
-  type        = string
-  default     = null
-  description = "The name of the AWS Organization management account"
-}
 
 variable "delegated_administrator_account_name" {
   type        = string
