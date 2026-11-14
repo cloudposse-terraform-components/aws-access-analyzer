@@ -80,6 +80,30 @@ description: |-
   - `true` (default): Creates the service-linked role when delegating administration
   - `false`: Skips creation (use if the role already exists or was created manually/by another process)
 
+  ## Unused Access Exclusions
+
+  An unused access analyzer is effectively global: its findings do not change based on Region, so one organization
+  analyzer covers the IAM users and roles of every member account. `unused_access_exclusions` adds an analysis rule
+  that excludes accounts (by account map name) or tagged principals from it, for example to leave out sandbox
+  accounts or break-glass roles, or to keep some accounts' IAM metadata out of a Region's analyzer and analyze them
+  with a second analyzer in another Region.
+
+  Each list entry becomes one `exclusion` block. The default (`[]`) creates no analysis rule.
+
+  ```yaml
+  vars:
+    unused_access_exclusions:
+      - account_names:
+          - plat-sandbox
+      - resource_tags:
+          - break-glass: "true"
+  ```
+
+  - `account_names` must be keys of the account map and cannot include the analyzer owner account
+    (`delegated_administrator_account_name`); AWS allows at most 2,000 accounts per exclusion.
+  - `configuration` is ForceNew in the AWS provider: changing the exclusions replaces the analyzer, which regenerates
+    its findings (archived findings lose their status).
+
   ## Configuration
 
   > **Note**: The examples below use Cloud Posse naming conventions (e.g., `core-security` for the security account,

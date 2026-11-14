@@ -4,6 +4,10 @@ locals {
 
   current_account_id                     = one(data.aws_caller_identity.this[*].account_id)
   org_delegated_administrator_account_id = local.account_map[var.delegated_administrator_account_name]
+
+  unused_access_exclusion_account_names         = flatten([for e in var.unused_access_exclusions : e.account_names])
+  unused_access_exclusion_unknown_account_names = [for name in local.unused_access_exclusion_account_names : name if !contains(keys(local.account_map), name)]
+  unused_access_exclusion_account_ids           = [for name in local.unused_access_exclusion_account_names : lookup(local.account_map, name, null)]
 }
 
 data "aws_caller_identity" "this" {
@@ -37,10 +41,34 @@ resource "aws_accessanalyzer_analyzer" "organization_unused_access" {
   configuration {
     unused_access {
       unused_access_age = var.unused_access_age
+
+      dynamic "analysis_rule" {
+        for_each = length(var.unused_access_exclusions) > 0 ? [1] : []
+        content {
+          dynamic "exclusion" {
+            for_each = var.unused_access_exclusions
+            content {
+              account_ids   = [for name in exclusion.value.account_names : local.account_map[name]]
+              resource_tags = exclusion.value.resource_tags
+            }
+          }
+        }
+      }
     }
   }
 
   tags = module.this.tags
+
+  lifecycle {
+    precondition {
+      condition     = length(local.unused_access_exclusion_unknown_account_names) == 0
+      error_message = "`unused_access_exclusions` account names not found in the account map: ${join(", ", local.unused_access_exclusion_unknown_account_names)}"
+    }
+    precondition {
+      condition     = !contains(local.unused_access_exclusion_account_ids, local.org_delegated_administrator_account_id)
+      error_message = "`unused_access_exclusions` cannot exclude the analyzer owner account (`delegated_administrator_account_name`): AWS rejects it."
+    }
+  }
 }
 
 # Delegate Access Analyzer to the administrator account (usually the security account)

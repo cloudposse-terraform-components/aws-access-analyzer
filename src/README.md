@@ -87,6 +87,30 @@ The service-linked role creation can be controlled with the `service_linked_role
 - `true` (default): Creates the service-linked role when delegating administration
 - `false`: Skips creation (use if the role already exists or was created manually/by another process)
 
+## Unused Access Exclusions
+
+An unused access analyzer is effectively global: its findings do not change based on Region, so one organization
+analyzer covers the IAM users and roles of every member account. `unused_access_exclusions` adds an analysis rule
+that excludes accounts (by account map name) or tagged principals from it, for example to leave out sandbox
+accounts or break-glass roles, or to keep some accounts' IAM metadata out of a Region's analyzer and analyze them
+with a second analyzer in another Region.
+
+Each list entry becomes one `exclusion` block. The default (`[]`) creates no analysis rule.
+
+```yaml
+vars:
+  unused_access_exclusions:
+    - account_names:
+        - plat-sandbox
+    - resource_tags:
+        - break-glass: "true"
+```
+
+- `account_names` must be keys of the account map and cannot include the analyzer owner account
+  (`delegated_administrator_account_name`); AWS allows at most 2,000 accounts per exclusion.
+- `configuration` is ForceNew in the AWS provider: changing the exclusions replaces the analyzer, which regenerates
+  its findings (archived findings lose their status).
+
 ## Configuration
 
 > **Note**: The examples below use Cloud Posse naming conventions (e.g., `core-security` for the security account,
@@ -283,6 +307,7 @@ This step creates the organization-wide analyzers:
 | <a name="input_tags"></a> [tags](#input\_tags) | Additional tags (e.g. `{'BusinessUnit': 'XYZ'}`).<br/>Neither the tag keys nor the tag values will be modified by this module. | `map(string)` | `{}` | no |
 | <a name="input_tenant"></a> [tenant](#input\_tenant) | ID element \_(Rarely used, not included by default)\_. A customer identifier, indicating who this instance of a resource is for | `string` | `null` | no |
 | <a name="input_unused_access_age"></a> [unused\_access\_age](#input\_unused\_access\_age) | The specified access age in days for which to generate findings for unused access | `number` | `30` | no |
+| <a name="input_unused_access_exclusions"></a> [unused\_access\_exclusions](#input\_unused\_access\_exclusions) | Exclusions for the organization unused access analyzer's analysis rule. Each entry becomes one `exclusion` block:<br/>IAM users and roles in the listed accounts, or with all the tags of one of the listed tag maps, generate no findings.<br/>`account_names` are keys of the account map (as `delegated_administrator_account_name`) and cannot include the<br/>analyzer owner account. Empty (default) creates no analysis rule. Changing it replaces the analyzer<br/>(`configuration` is ForceNew), which regenerates its findings. | <pre>list(object({<br/>    account_names = optional(list(string), [])<br/>    resource_tags = optional(list(map(string)), [])<br/>  }))</pre> | `[]` | no |
 
 ## Outputs
 
