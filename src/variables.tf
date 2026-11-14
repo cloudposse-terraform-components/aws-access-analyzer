@@ -101,6 +101,34 @@ variable "unused_access_age" {
   default     = 30
 }
 
+variable "unused_access_exclusions" {
+  type = list(object({
+    account_names = optional(list(string), [])
+    resource_tags = optional(list(map(string)), [])
+  }))
+  description = <<-DOC
+  Exclusions for the organization unused access analyzer's analysis rule. Each entry becomes one `exclusion` block:
+  IAM users and roles in the listed accounts, or with all the tags of one of the listed tag maps, generate no findings.
+  `account_names` are keys of the account map (as `delegated_administrator_account_name`) and cannot include the
+  analyzer owner account. Empty (default) creates no analysis rule. Changing it replaces the analyzer
+  (`configuration` is ForceNew), which regenerates its findings.
+  DOC
+  default     = []
+  nullable    = false
+
+  validation {
+    condition = alltrue([
+      for e in var.unused_access_exclusions : length(e.account_names) > 0 || length(e.resource_tags) > 0
+    ])
+    error_message = "Each exclusion must set `account_names`, `resource_tags`, or both."
+  }
+
+  validation {
+    condition     = alltrue([for e in var.unused_access_exclusions : length(e.account_names) <= 2000])
+    error_message = "Each exclusion may list at most 2,000 accounts."
+  }
+}
+
 variable "organizations_delegated_administrator_enabled" {
   type        = bool
   description = "Flag to enable the Organization delegated administrator"
