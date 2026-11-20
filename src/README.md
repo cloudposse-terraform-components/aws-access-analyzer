@@ -38,12 +38,13 @@ environment and generates findings for each instance of a resource shared outsid
 
 ## Analyzer Types
 
-This component creates two types of organization-wide analyzers:
+This component creates two types of organization-wide analyzers, and optionally a per-account analyzer:
 
 | Analyzer Type | Purpose | Findings |
 |---------------|---------|----------|
 | `ORGANIZATION` | External access analysis | Public access, cross-account access, cross-organization access |
 | `ORGANIZATION_UNUSED_ACCESS` | Unused access analysis | Unused roles, users, permissions (configurable threshold) |
+| `ACCOUNT` (optional, `accessanalyzer_account_enabled`) | External access analysis of one account and region | Public and cross-account access to that account's resources |
 
 ## Supported Resources
 
@@ -157,6 +158,27 @@ components:
         unused_access_age: 30
 ```
 
+### Per-account Analyzer (Optional)
+
+An organization analyzer cannot exclude accounts. Where one is not wanted in a region (for example, data-residency
+rules: an externally trusted IAM role is reported in every enabled region), deploy an `ACCOUNT` analyzer to each
+account and region instead. It needs no delegation, and external access analyzers are free.
+
+In the management account, deploy it after the root step (Step 1): AWS creates the Access Analyzer service-linked role
+with the first analyzer, and the root step's `aws_iam_service_linked_role` would then fail because the role exists.
+
+```yaml
+components:
+  terraform:
+    aws-access-analyzer/account:
+      metadata:
+        component: aws-access-analyzer
+        inherits:
+          - aws-access-analyzer/defaults
+      vars:
+        accessanalyzer_account_enabled: true
+```
+
 ## Provisioning
 
 > **Note**: Replace the stack names below (e.g., `core-gbl-root`, `core-use1-security`) with your actual stack names
@@ -238,6 +260,7 @@ This step creates the organization-wide analyzers:
 
 | Name | Type |
 |------|------|
+| [aws_accessanalyzer_analyzer.account](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/accessanalyzer_analyzer) | resource |
 | [aws_accessanalyzer_analyzer.organization](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/accessanalyzer_analyzer) | resource |
 | [aws_accessanalyzer_analyzer.organization_unused_access](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/accessanalyzer_analyzer) | resource |
 | [aws_iam_service_linked_role.access_analyzer](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_service_linked_role) | resource |
@@ -249,6 +272,7 @@ This step creates the organization-wide analyzers:
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| <a name="input_accessanalyzer_account_enabled"></a> [accessanalyzer\_account\_enabled](#input\_accessanalyzer\_account\_enabled) | Create an ACCOUNT external-access analyzer in the account and region the component deploys to<br/>(analyzer name `<id>-account`). Needs no delegation: any account can create one. | `bool` | `false` | no |
 | <a name="input_accessanalyzer_organization_enabled"></a> [accessanalyzer\_organization\_enabled](#input\_accessanalyzer\_organization\_enabled) | Flag to enable the Organization Access Analyzer | `bool` | n/a | yes |
 | <a name="input_accessanalyzer_organization_unused_access_enabled"></a> [accessanalyzer\_organization\_unused\_access\_enabled](#input\_accessanalyzer\_organization\_unused\_access\_enabled) | Flag to enable the Organization unused access Access Analyzer | `bool` | n/a | yes |
 | <a name="input_accessanalyzer_service_principal"></a> [accessanalyzer\_service\_principal](#input\_accessanalyzer\_service\_principal) | The Access Analyzer service principal for which you want to make the member account a delegated administrator | `string` | `"access-analyzer.amazonaws.com"` | no |
@@ -288,6 +312,7 @@ This step creates the organization-wide analyzers:
 
 | Name | Description |
 |------|-------------|
+| <a name="output_account_accessanalyzer_arn"></a> [account\_accessanalyzer\_arn](#output\_account\_accessanalyzer\_arn) | ACCOUNT external-access Access Analyzer ARN |
 | <a name="output_aws_organizations_delegated_administrator_id"></a> [aws\_organizations\_delegated\_administrator\_id](#output\_aws\_organizations\_delegated\_administrator\_id) | AWS Organizations Delegated Administrator ID |
 | <a name="output_aws_organizations_delegated_administrator_status"></a> [aws\_organizations\_delegated\_administrator\_status](#output\_aws\_organizations\_delegated\_administrator\_status) | AWS Organizations Delegated Administrator status |
 | <a name="output_organization_accessanalyzer_id"></a> [organization\_accessanalyzer\_id](#output\_organization\_accessanalyzer\_id) | Organization Access Analyzer ID |

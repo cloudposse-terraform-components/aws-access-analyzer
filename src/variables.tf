@@ -117,3 +117,13 @@ variable "service_linked_role_enabled" {
   description = "Create the service-linked role `access-analyzer.amazonaws.com` in the management account"
   default     = true
 }
+
+variable "accessanalyzer_account_enabled" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = <<-DOC
+  Create an ACCOUNT external-access analyzer in the account and region the component deploys to
+  (analyzer name `<id>-account`). Needs no delegation: any account can create one.
+  DOC
+}
