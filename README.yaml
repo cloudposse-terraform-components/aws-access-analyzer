@@ -31,12 +31,13 @@ description: |-
 
   ## Analyzer Types
 
-  This component creates two types of organization-wide analyzers:
+  This component creates two types of organization-wide analyzers, and optionally a per-account analyzer:
 
   | Analyzer Type | Purpose | Findings |
   |---------------|---------|----------|
   | `ORGANIZATION` | External access analysis | Public access, cross-account access, cross-organization access |
   | `ORGANIZATION_UNUSED_ACCESS` | Unused access analysis | Unused roles, users, permissions (configurable threshold) |
+  | `ACCOUNT` (optional, `accessanalyzer_account_enabled`) | External access analysis of one account and region | Public and cross-account access to that account's resources |
 
   ## Supported Resources
 
@@ -148,6 +149,27 @@ description: |-
           accessanalyzer_organization_unused_access_enabled: true
           # Number of days without use before generating unused access findings (default: 30)
           unused_access_age: 30
+  ```
+
+  ### Per-account Analyzer (Optional)
+
+  An organization analyzer cannot exclude accounts. Where one is not wanted in a region (for example, data-residency
+  rules: an externally trusted IAM role is reported in every enabled region), deploy an `ACCOUNT` analyzer to each
+  account and region instead. It needs no delegation, and external access analyzers are free.
+
+  In the management account, deploy it after the root step (Step 1): AWS creates the Access Analyzer service-linked role
+  with the first analyzer, and the root step's `aws_iam_service_linked_role` would then fail because the role exists.
+
+  ```yaml
+  components:
+    terraform:
+      aws-access-analyzer/account:
+        metadata:
+          component: aws-access-analyzer
+          inherits:
+            - aws-access-analyzer/defaults
+        vars:
+          accessanalyzer_account_enabled: true
   ```
 
   ## Provisioning

@@ -27,3 +27,8 @@ output "service_linked_role_name" {
   value       = one(aws_iam_service_linked_role.access_analyzer[*].name)
   description = "Name of the Access Analyzer service-linked role"
 }
+
+output "account_accessanalyzer_arn" {
+  value       = one(aws_accessanalyzer_analyzer.account[*].arn)
+  description = "ACCOUNT external-access Access Analyzer ARN"
+}

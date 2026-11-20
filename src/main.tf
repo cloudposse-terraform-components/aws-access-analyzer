@@ -43,6 +43,20 @@ resource "aws_accessanalyzer_analyzer" "organization_unused_access" {
   tags = module.this.tags
 }
 
+# Optional per-account external-access analyzer, for regions where an organization analyzer is not wanted
+resource "aws_accessanalyzer_analyzer" "account" {
+  count = local.enabled && var.accessanalyzer_account_enabled ? 1 : 0
+
+  analyzer_name = format("%s-account", module.this.id)
+  type          = "ACCOUNT"
+
+  tags = module.this.tags
+
+  # In the management account the root step creates the service-linked role; AWS would otherwise
+  # create it with this analyzer when both are in one apply.
+  depends_on = [aws_iam_service_linked_role.access_analyzer]
+}
+
 # Delegate Access Analyzer to the administrator account (usually the security account)
 resource "aws_organizations_delegated_administrator" "default" {
   count = local.enabled && var.organizations_delegated_administrator_enabled ? 1 : 0
